@@ -11,9 +11,6 @@
 #include <utility>
 #include <algorithm>
 
-// ---------------------------------------------------------
-// Physics & Simulation
-// ---------------------------------------------------------
 
 struct State {
     double x, y, z;
@@ -35,15 +32,13 @@ State computeAccel(const State& s, double theta, double phi, const MissileParams
     double D = 0.5 * p.rho * v*v * p.Cd * p.A;
     double currentThrust = (s.t <= p.burnTime) ? p.T : 0.0;
     
-    // Forces
+
     // Drag acts opposite to velocity vector: F_drag = -D * (v_vec / |v|)
     double F_drag_x = -D * (s.vx / v);
     double F_drag_y = -D * (s.vy / v);
     double F_drag_z = -D * (s.vz / v);
 
-    // Thrust vector based on launch angles (simplified: assumes missile points along velocity vector after launch, 
-    // but for simple ballistic trajectory we often assume constant thrust direction or thrust along velocity. 
-    // Let's assume thrust aligns with velocity for stability, or initial angle if v is small)
+
     double thrust_x, thrust_y, thrust_z;
     if (s.t <= p.burnTime) {
         if (v > 1.0) {
@@ -60,7 +55,7 @@ State computeAccel(const State& s, double theta, double phi, const MissileParams
         thrust_x = thrust_y = thrust_z = 0;
     }
 
-    d.vx = (thrust_x + F_drag_x)/p.m + p.windX; // Wind adds to velocity relative to ground? Simplified wind model
+    d.vx = (thrust_x + F_drag_x)/p.m + p.windX;  
     d.vy = (thrust_y + F_drag_y)/p.m - p.g;
     d.vz = (thrust_z + F_drag_z)/p.m + p.windZ;
 
@@ -107,7 +102,6 @@ std::vector<Point3D> simulateTrajectory(double theta_deg, double phi_deg, const 
     double theta = theta_deg * M_PI / 180.0;
     double phi = phi_deg * M_PI / 180.0;
     
-    // Initial velocity based on thrust? No, starts at 0 velocity usually, but let's give it a tiny push or just rely on acceleration
     State s {0,0,0, 0,0,0, 0}; 
     
     double dt = 0.01;
@@ -124,15 +118,13 @@ std::vector<Point3D> simulateTrajectory(double theta_deg, double phi_deg, const 
     return traj;
 }
 
-// Find optimal launch angle (simplified for 2D plane optimization, ignoring Z for optimization metric)
 double findOptimalAngle(const MissileParams& p) {
     double bestAngle = 0;
     double maxRange = -1;
     for(double angle=10; angle<=80; angle+=1.0) {
-        auto traj = simulateTrajectory(angle, 0, p); // Optimize for 0 yaw
+        auto traj = simulateTrajectory(angle, 0, p); 
         if (traj.empty()) continue;
         
-        // Horizontal distance in XZ plane
         double dx = traj.back().x;
         double dz = traj.back().z;
         double range = std::sqrt(dx*dx + dz*dz);
@@ -145,9 +137,6 @@ double findOptimalAngle(const MissileParams& p) {
     return bestAngle;
 }
 
-// ---------------------------------------------------------
-// Visualization
-// ---------------------------------------------------------
 
 float camDist = 100.0f;
 float camYaw = 0.0f;
@@ -174,7 +163,6 @@ void renderGround() {
     }
     glEnd();
     
-    // Axes
     glLineWidth(2.0f);
     glBegin(GL_LINES);
     glColor3f(1,0,0); glVertex3f(0,0,0); glVertex3f(100,0,0); // X
@@ -193,14 +181,11 @@ void renderMissile(const Point3D& p, const Point3D& prevP) {
     double dz = p.z - prevP.z;
     double mag = std::sqrt(dx*dx + dy*dy + dz*dz);
     
-    // Rotate to align with velocity (simplified)
     if (mag > 0) {
         // Normalize
         dx /= mag; dy /= mag; dz /= mag;
         
-        // Pitch (angle with XZ plane)
         double pitch = asin(dy) * 180.0 / M_PI;
-        // Yaw (angle in XZ plane)
         double yaw = atan2(dx, dz) * 180.0 / M_PI;
         
         glRotatef((float)yaw, 0, 1, 0);
@@ -222,7 +207,6 @@ void renderMissile(const Point3D& p, const Point3D& prevP) {
     glVertex3f(-r, -r, -len/2); glVertex3f(r, -r, -len/2); glVertex3f(r, -r, len/2); glVertex3f(-r, -r, len/2);
     glEnd();
     
-    // Fins (Red)
     glColor3f(0.8f, 0.2f, 0.2f);
     glBegin(GL_TRIANGLES);
     glVertex3f(0, 0, -len/2); glVertex3f(0, r*3, -len/2 - 0.5f); glVertex3f(0, 0, -len/2 + 0.5f);
@@ -240,17 +224,15 @@ void renderExplosion(const Point3D& p, float scale) {
     glScalef(scale, scale, scale);
     
     glBegin(GL_TRIANGLES);
-    // Debris/Smoke (Dark Grey/Brown) - Less fiery
     glColor3f(0.4f, 0.4f, 0.4f); 
     for(int i=0; i<20; ++i) {
-        float x = (float)(rand()%100 - 50)/60.0f; // More compact
+        float x = (float)(rand()%100 - 50)/60.0f; 
         float y = (float)(rand()%100 - 50)/60.0f;
         float z = (float)(rand()%100 - 50)/60.0f;
         glVertex3f(0,0,0);
         glVertex3f(x,y,z);
         glVertex3f(x*0.5f, y+0.5f, z*0.5f);
     }
-    // Core (Dull Orange)
     glColor3f(0.8f, 0.4f, 0.0f); 
     for(int i=0; i<10; ++i) {
         float x = (float)(rand()%100 - 50)/100.0f;
@@ -265,14 +247,12 @@ void renderExplosion(const Point3D& p, float scale) {
 }
 
 void renderTrajectory(const std::vector<Point3D>& traj, int currentStep) {
-    // Draw full path faintly
     glLineWidth(1.0f);
     glColor3f(0.3f, 0.3f, 0.3f);
     glBegin(GL_LINE_STRIP);
     for(const auto& pt : traj) glVertex3f((float)pt.x, (float)pt.y, (float)pt.z);
     glEnd();
 
-    // Draw active path brightly
     glLineWidth(3.0f);
     glBegin(GL_LINE_STRIP);
     for(int i=0; i<=currentStep && i<traj.size(); ++i) {
@@ -354,7 +334,6 @@ int main() {
     while(!glfwWindowShouldClose(window)) {
         processInput(window);
 
-        // Update Animation
         if (!paused && !traj.empty()) {
             animStep += speedMultiplier;
             if (animStep >= traj.size()) animStep = traj.size() - 1;
@@ -363,7 +342,7 @@ int main() {
         int width, height;
         glfwGetFramebufferSize(window, &width, &height);
         glViewport(0, 0, width, height);
-        glClearColor(0.05f, 0.05f, 0.1f, 1.0f); // Dark blueish sky
+        glClearColor(0.05f, 0.05f, 0.1f, 1.0f); 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glMatrixMode(GL_PROJECTION);
@@ -373,12 +352,8 @@ int main() {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         
-        // Camera logic
-        Point3D target = traj.empty() ? Point3D{0,0,0} : traj[animStep]; // Follow missile?
-        // Let's look at the missile!
-        // Or keep looking at center? Looking at missile is more dynamic.
-        // Let's stick to looking at the midpoint of the whole trajectory for stability, but maybe pan slightly.
-        
+        Point3D target = traj.empty() ? Point3D{0,0,0} : traj[animStep]; 
+       
         float midX = traj.back().x / 2.0f;
         float midZ = traj.back().z / 2.0f;
         
@@ -388,7 +363,7 @@ int main() {
         float camY = camDist * sin(radPitch);
         float camZ = midZ + camDist * cos(radPitch) * cos(radYaw);
         
-        if (camY < 1.0f) camY = 1.0f; // Don't go underground
+        if (camY < 1.0f) camY = 1.0f; 
 
         gluLookAt(camX, camY, camZ, midX, 0, midZ, 0, 1, 0);
 
