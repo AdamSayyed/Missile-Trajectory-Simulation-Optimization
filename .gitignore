@@ -1,0 +1,14 @@
+# Build artifacts
+*.exe
+*.o
+*.obj
+
+# Dependencies (downloaded by setup script)
+deps/
+glfw_temp/
+glfw.zip
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
